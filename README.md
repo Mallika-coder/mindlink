@@ -2,9 +2,12 @@
 
 A privacy-first digital mental health and psychological support system designed specifically for students in higher education. This project is a single-page web app built with React, Vite, and Tailwind CSS, featuring a modern, responsive interface with smooth animations.
 
-LIVE DEMO :
+LIVE DEMO :  webbooster.netlify.app
 
 MINDLINK VIDEO DEMO : https://drive.google.com/file/d/1BPtdZb2Jb90CKI8IFbi0E0qCfliRi9LT/view?usp=sharing
+
+Screenshot of website- <img width="1879" height="824" alt="Screenshot 2025-09-15 180042" src="https://github.com/user-attachments/assets/9aeb39ca-bb30-4246-9943-8a7a9ad79012" />
+
 ---
 
 ### 🖼️ Sneak Peek

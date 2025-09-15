@@ -396,6 +396,8 @@ function SelfAssessmentCard() {
     )
 }
 
+// src/App.jsx -> Replace ONLY the AvatarCheckIn component with this code
+
 function AvatarCheckIn() {
   const [moods, setMoods] = useLocalState("mlk-moods", []);
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -409,9 +411,13 @@ function AvatarCheckIn() {
     setDisplayedMessage("");
     let i = 0;
     const interval = setInterval(() => {
+      // FIX: Check condition BEFORE setting state
+      if (i >= fullMessage.length) {
+        clearInterval(interval);
+        return;
+      }
       setDisplayedMessage(prev => prev + fullMessage[i]);
       i++;
-      if (i >= fullMessage.length) { clearInterval(interval); }
     }, 30);
     return () => clearInterval(interval);
   }, [alreadyCheckedIn]);

@@ -1,5 +1,6 @@
 // src/App.jsx - FINAL STABLE VERSION
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import ChatWindow from "./components/ChatWindow";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, BookOpen, Users, Award, Settings, Heart, MessageCircle, PhoneCall,
@@ -528,96 +529,3 @@ function FloatingChatButton({ onClick }) {
     )
 }
 
-// src/App.jsx -> Replace ONLY the ChatWindow component with this code
-
-function ChatWindow({ onClose }) {
-    const [messages, setMessages] = useLocalState("mlk-chat", [{ role: "ai", text: "Hi, I'm your campus buddy. How are you?" }]);
-    const [chatDraft, setChatDraft] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const chatContainerRef = useRef(null);
-    const sentimentModel = useRef(null);
-
-    // --- NEW ROBUST WAY to load the model from the script ---
-    useEffect(() => {
-        const loadModel = async () => {
-            // Check if the script has loaded and created the 'sentiment' object on the window
-            if (window.sentiment) {
-                try {
-                    sentimentModel.current = await window.sentiment.load();
-                    console.log("Sentiment model loaded successfully from script!");
-                } catch (error) {
-                    console.error("Failed to load sentiment model:", error);
-                }
-            } else {
-                // If the script isn't loaded yet, wait a bit and try again.
-                setTimeout(loadModel, 500);
-            }
-        };
-        loadModel();
-    }, []);
-
-    async function getAIResponse(message) {
-        if (!sentimentModel.current) {
-            throw new Error("Sentiment model is not ready yet. Please wait a moment.");
-        }
-        const predictions = await sentimentModel.current.predict(message.toLowerCase());
-        const score = predictions.score;
-        const negativeResponses = ["I hear you, and it's okay to feel this way. Could you tell me a bit more?", "Thank you for sharing. It sounds like things are tough right now.", "That sounds really challenging. I'm here to listen."];
-        const positiveResponses = ["That's wonderful to hear! I'm so glad you're feeling this way.", "That sounds like a great experience! Thanks for sharing that positivity.", "Amazing! Keep embracing that positive energy."];
-        const neutralResponses = ["Thanks for sharing. Is there anything else you'd like to talk about?", "I understand. Let's explore that a little more if you're comfortable.", "Okay, I'm listening. Feel free to share more."];
-        
-        let responsePool;
-        if (score < 0.3) responsePool = negativeResponses;
-        else if (score > 0.7) responsePool = positiveResponses;
-        else responsePool = neutralResponses;
-        
-        return responsePool[Math.floor(Math.random() * responsePool.length)];
-    }
-
-    const sendChat = async () => {
-        if (!chatDraft.trim() || isLoading) return;
-        const userMessage = chatDraft.trim();
-        const user = { role: "user", text: userMessage };
-        
-        setMessages(prev => [...prev, user]);
-        setChatDraft("");
-        setIsLoading(true);
-
-        try {
-            const aiText = await getAIResponse(userMessage);
-            const ai = { role: "ai", text: aiText };
-            setMessages(prev => [...prev, ai]);
-        } catch (error) {
-            console.error("AI Response Error:", error);
-            const errorResponse = { role: "ai", text: "Sorry, I'm having a little trouble. The AI model might still be loading. Please try again in a few seconds." };
-            setMessages(prev => [...prev, errorResponse]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-        }
-    }, [messages, isLoading]);
-
-    return (
-        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-24 right-6 w-full max-w-sm h-[70vh] max-h-[500px] bg-white dark:bg-gray-950/80 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200 dark:border-gray-800 flex flex-col z-50">
-            <div className="p-4 border-b border-slate-200 dark:border-gray-800 flex justify-between items-center flex-shrink-0">
-                <h3 className="font-bold">AI Companion</h3>
-                <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-gray-800"><X className="w-5 h-5 text-slate-500"/></button>
-            </div>
-            <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4">
-                {messages.map((m, i) => (<div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}><div className={`px-4 py-2 rounded-2xl max-w-[80%] ${m.role === "user" ? "bg-indigo-600 text-white rounded-br-none" : "bg-slate-100 dark:bg-gray-800 rounded-bl-none"}`}>{m.text}</div></div>))}
-                {isLoading && (<div className="flex justify-start"><div className="px-4 py-2 rounded-2xl max-w-[80%] bg-slate-100 dark:bg-gray-800 rounded-bl-none"><span className="animate-pulse">AI is thinking...</span></div></div>)}
-            </div>
-            <div className="p-4 border-t border-slate-200 dark:border-gray-800 flex-shrink-0">
-                <form onSubmit={(e) => { e.preventDefault(); sendChat(); }} className="flex gap-2">
-                    <input type="text" value={chatDraft} onChange={(e) => setChatDraft(e.target.value)} placeholder="Type how you're feeling..." className="w-full p-3 rounded-full bg-slate-100 dark:bg-gray-800 border-transparent focus:border-indigo-500 focus:ring-indigo-500" />
-                    <button type="submit" className="w-12 h-12 bg-indigo-500 text-white rounded-full flex items-center justify-center flex-shrink-0 hover:bg-indigo-600"><Send className="w-5 h-5" /></button>
-                </form>
-            </div>
-        </motion.div>
-    );
-}

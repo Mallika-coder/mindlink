@@ -3,5 +3,6 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": "vite",
-  "functions": {}
+  "functions": {},
+  "version": 2
 }

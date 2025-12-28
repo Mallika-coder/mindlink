@@ -8,15 +8,6 @@ MINDLINK VIDEO DEMO: https://drive.google.com/file/d/1BPtdZb2Jb90CKI8IFbi0E0qCfl
 
 Screenshot of website- <img width="1874" height="915" alt="image" src="https://github.com/user-attachments/assets/adad6da8-3812-4bc2-81d0-487136332915" />
 
-
----
-
-### 🖼️ Sneak Peek
-
-*Your App's Screenshot Yahan Daalein! Ek accha screenshot daalne se aapka project bahut professional lagta hai.*
-
-`[App Screenshot/GIF]`
-
 ---
 
 ### ✨ Key Features

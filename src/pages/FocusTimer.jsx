@@ -21,9 +21,225 @@ export default function FocusTimer() {
   const [volume, setVolume] = useState(0.5);
   const [isMuted, setIsMuted] = useState(false);
   const audioContextRef = useRef(null);
-  const oscillatorRef = useRef(null);
   const gainNodeRef = useRef(null);
   const intervalRef = useRef(null);
+
+  const createNoiseBuffer = (ctx, seconds = 2) => {
+    const bufferSize = ctx.sampleRate * seconds;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
+  };
+
+  const buildRain = (ctx, masterGain) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = createNoiseBuffer(ctx, 4);
+    noise.loop = true;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = "bandpass";
+    bandpass.frequency.setValueAtTime(1200, ctx.currentTime);
+    bandpass.Q.setValueAtTime(0.5, ctx.currentTime);
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.setValueAtTime(400, ctx.currentTime);
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.setValueAtTime(0.15, ctx.currentTime);
+    lfoGain.gain.setValueAtTime(300, ctx.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(bandpass.frequency);
+    lfo.start();
+    noise.connect(bandpass);
+    bandpass.connect(highpass);
+    highpass.connect(masterGain);
+    noise.start();
+    return [noise, lfo];
+  };
+
+  const buildOcean = (ctx, masterGain) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = createNoiseBuffer(ctx, 4);
+    noise.loop = true;
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.setValueAtTime(600, ctx.currentTime);
+    lowpass.Q.setValueAtTime(1, ctx.currentTime);
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.setValueAtTime(0.08, ctx.currentTime);
+    lfoGain.gain.setValueAtTime(400, ctx.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(lowpass.frequency);
+    lfo.start();
+    const volumeLfo = ctx.createOscillator();
+    const volumeLfoGain = ctx.createGain();
+    volumeLfo.frequency.setValueAtTime(0.08, ctx.currentTime);
+    volumeLfoGain.gain.setValueAtTime(0.4, ctx.currentTime);
+    const waveGain = ctx.createGain();
+    waveGain.gain.setValueAtTime(0.6, ctx.currentTime);
+    volumeLfo.connect(volumeLfoGain);
+    volumeLfoGain.connect(waveGain.gain);
+    volumeLfo.start();
+    noise.connect(lowpass);
+    lowpass.connect(waveGain);
+    waveGain.connect(masterGain);
+    noise.start();
+    return [noise, lfo, volumeLfo];
+  };
+
+  const buildForest = (ctx, masterGain) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = createNoiseBuffer(ctx, 4);
+    noise.loop = true;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = "bandpass";
+    bandpass.frequency.setValueAtTime(3000, ctx.currentTime);
+    bandpass.Q.setValueAtTime(2, ctx.currentTime);
+    const rustleGain = ctx.createGain();
+    rustleGain.gain.setValueAtTime(0.3, ctx.currentTime);
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.setValueAtTime(0.3, ctx.currentTime);
+    lfoGain.gain.setValueAtTime(0.25, ctx.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(rustleGain.gain);
+    lfo.start();
+    noise.connect(bandpass);
+    bandpass.connect(rustleGain);
+    rustleGain.connect(masterGain);
+    noise.start();
+    const chirpInterval = setInterval(() => {
+      if (!audioContextRef.current) { clearInterval(chirpInterval); return; }
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "sine";
+      const baseFreq = 2000 + Math.random() * 2500;
+      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.3, ctx.currentTime + 0.05);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.9, ctx.currentTime + 0.1);
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.06, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    }, 800 + Math.random() * 2000);
+    return [noise, lfo, { stop: () => clearInterval(chirpInterval) }];
+  };
+
+  const buildFire = (ctx, masterGain) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = createNoiseBuffer(ctx, 4);
+    noise.loop = true;
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.setValueAtTime(200, ctx.currentTime);
+    const baseGain = ctx.createGain();
+    baseGain.gain.setValueAtTime(0.5, ctx.currentTime);
+    noise.connect(lowpass);
+    lowpass.connect(baseGain);
+    baseGain.connect(masterGain);
+    noise.start();
+    const crackleInterval = setInterval(() => {
+      if (!audioContextRef.current) { clearInterval(crackleInterval); return; }
+      const numPops = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < numPops; i++) {
+        const delay = Math.random() * 0.1;
+        const pop = ctx.createBufferSource();
+        const popBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
+        const popData = popBuffer.getChannelData(0);
+        for (let j = 0; j < popData.length; j++) {
+          popData[j] = (Math.random() * 2 - 1) * Math.exp(-j / (popData.length * 0.2));
+        }
+        pop.buffer = popBuffer;
+        const popFilter = ctx.createBiquadFilter();
+        popFilter.type = "highpass";
+        popFilter.frequency.setValueAtTime(1000 + Math.random() * 3000, ctx.currentTime);
+        const popGain = ctx.createGain();
+        popGain.gain.setValueAtTime(0.15 + Math.random() * 0.15, ctx.currentTime + delay);
+        pop.connect(popFilter);
+        popFilter.connect(popGain);
+        popGain.connect(masterGain);
+        pop.start(ctx.currentTime + delay);
+      }
+    }, 150 + Math.random() * 250);
+    return [noise, { stop: () => clearInterval(crackleInterval) }];
+  };
+
+  const buildWind = (ctx, masterGain) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = createNoiseBuffer(ctx, 4);
+    noise.loop = true;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = "bandpass";
+    bandpass.frequency.setValueAtTime(500, ctx.currentTime);
+    bandpass.Q.setValueAtTime(0.7, ctx.currentTime);
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.setValueAtTime(0.05, ctx.currentTime);
+    lfoGain.gain.setValueAtTime(400, ctx.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(bandpass.frequency);
+    lfo.start();
+    const volLfo = ctx.createOscillator();
+    const volLfoGain = ctx.createGain();
+    volLfo.frequency.setValueAtTime(0.12, ctx.currentTime);
+    volLfoGain.gain.setValueAtTime(0.3, ctx.currentTime);
+    const windGain = ctx.createGain();
+    windGain.gain.setValueAtTime(0.7, ctx.currentTime);
+    volLfo.connect(volLfoGain);
+    volLfoGain.connect(windGain.gain);
+    volLfo.start();
+    noise.connect(bandpass);
+    bandpass.connect(windGain);
+    windGain.connect(masterGain);
+    noise.start();
+    return [noise, lfo, volLfo];
+  };
+
+  const buildBirds = (ctx, masterGain) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = createNoiseBuffer(ctx, 4);
+    noise.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.setValueAtTime(2500, ctx.currentTime);
+    bp.Q.setValueAtTime(3, ctx.currentTime);
+    const ambGain = ctx.createGain();
+    ambGain.gain.setValueAtTime(0.08, ctx.currentTime);
+    noise.connect(bp);
+    bp.connect(ambGain);
+    ambGain.connect(masterGain);
+    noise.start();
+    const songInterval = setInterval(() => {
+      if (!audioContextRef.current) { clearInterval(songInterval); return; }
+      const noteCount = 3 + Math.floor(Math.random() * 5);
+      const baseFreq = 1800 + Math.random() * 2000;
+      for (let i = 0; i < noteCount; i++) {
+        const t = ctx.currentTime + i * (0.08 + Math.random() * 0.06);
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        const freq = baseFreq * (1 + (Math.random() - 0.5) * 0.4);
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * (0.8 + Math.random() * 0.4), t + 0.06);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.08, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.1);
+      }
+    }, 1500 + Math.random() * 3000);
+    return [noise, { stop: () => clearInterval(songInterval) }];
+  };
+
+  const soundNodesRef = useRef([]);
 
   const startSound = useCallback((sound) => {
     stopSound();
@@ -32,51 +248,40 @@ export default function FocusTimer() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     audioContextRef.current = ctx;
 
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(isMuted ? 0 : volume * 0.8, ctx.currentTime);
+    masterGain.connect(ctx.destination);
+    gainNodeRef.current = masterGain;
 
-    oscillator.type = "sawtooth";
-    oscillator.frequency.setValueAtTime(sound.frequency, ctx.currentTime);
-
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(800, ctx.currentTime);
-    filter.Q.setValueAtTime(1, ctx.currentTime);
-
-    gainNode.gain.setValueAtTime(isMuted ? 0 : volume * 0.05, ctx.currentTime);
-
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.setValueAtTime(0.1, ctx.currentTime);
-    lfoGain.gain.setValueAtTime(50, ctx.currentTime);
-    lfo.connect(lfoGain);
-    lfoGain.connect(oscillator.frequency);
-    lfo.start();
-
-    oscillator.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    oscillator.start();
-
-    oscillatorRef.current = oscillator;
-    gainNodeRef.current = gainNode;
+    let nodes = [];
+    switch (sound.id) {
+      case "rain": nodes = buildRain(ctx, masterGain); break;
+      case "ocean": nodes = buildOcean(ctx, masterGain); break;
+      case "forest": nodes = buildForest(ctx, masterGain); break;
+      case "fire": nodes = buildFire(ctx, masterGain); break;
+      case "wind": nodes = buildWind(ctx, masterGain); break;
+      case "birds": nodes = buildBirds(ctx, masterGain); break;
+      default: nodes = buildRain(ctx, masterGain);
+    }
+    soundNodesRef.current = nodes;
     setActiveSound(sound);
   }, [volume, isMuted]);
 
   const stopSound = useCallback(() => {
-    if (oscillatorRef.current) {
-      oscillatorRef.current.stop();
-      oscillatorRef.current = null;
-    }
+    soundNodesRef.current.forEach((node) => {
+      try { if (node && node.stop) node.stop(); } catch (e) {}
+    });
+    soundNodesRef.current = [];
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
+    gainNodeRef.current = null;
   }, []);
 
   useEffect(() => {
-    if (gainNodeRef.current) {
-      gainNodeRef.current.gain.setValueAtTime(isMuted ? 0 : volume * 0.05, audioContextRef.current?.currentTime || 0);
+    if (gainNodeRef.current && audioContextRef.current) {
+      gainNodeRef.current.gain.setValueAtTime(isMuted ? 0 : volume * 0.8, audioContextRef.current.currentTime);
     }
   }, [volume, isMuted]);
 
